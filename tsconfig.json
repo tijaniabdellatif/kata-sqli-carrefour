@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/mini-chat-server"
+    },
+    {
+      "path": "./apps/client-chat"
+    },
+    {
+      "path": "./libs/shared/types"
+    },
+    {
+      "path": "./libs/shared/utils"
+    },
+    {
+      "path": "./libs/backend/common-layer"
+    },
+    {
+      "path": "./libs/frontend/ui"
+    },
+    {
+      "path": "./libs/shared/config"
+    }
+  ]
+}
