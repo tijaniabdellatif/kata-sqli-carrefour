@@ -29,8 +29,6 @@ RUN npx nx sync
 
 # Build the application
 RUN npx nx build mini-chat-server --configuration=production
-
-# Create a consolidated dist folder with the built output
 RUN mkdir -p /app/final-dist && \
     if [ -d "/app/dist/apps/mini-chat-server" ]; then \
       cp -r /app/dist/apps/mini-chat-server/* /app/final-dist/; \
