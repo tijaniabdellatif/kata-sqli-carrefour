@@ -30,7 +30,8 @@
           "format": [
             "cjs"
           ],
-          "bundle": false,
+          "bundle": true,
+          "thirdParty": false,
           "main": "apps/mini-chat-server/src/main.ts",
           "tsConfig": "apps/mini-chat-server/tsconfig.app.json",
           "assets": [
@@ -44,8 +45,12 @@
           }
         },
         "configurations": {
-          "development": {},
+          "development": {
+            "bundle": false
+          },
           "production": {
+            "bundle": true,
+            "thirdParty": false,
             "generateLockfile": true,
             "esbuildOptions": {
               "sourcemap": false,
