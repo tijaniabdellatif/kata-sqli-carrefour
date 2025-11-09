@@ -26,6 +26,7 @@ env:
   ECS_SERVICE: mini-chat-backend-service
   ECS_TASK_DEFINITION: mini-chat-backend-task
   CONTAINER_NAME: mini-chat-backend
+  NX_CLOUD_ACCESS_TOKEN: ''
 
 jobs:
   build-and-deploy:
