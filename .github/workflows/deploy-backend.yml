@@ -50,23 +50,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Disable Nx Cloud (if configured)
+      - name: Disable Nx Cloud
         run: |
-          if [ -f "nx.json" ]; then
-            node -e "const fs=require('fs'); const nx=JSON.parse(fs.readFileSync('nx.json')); delete nx.nxCloudId; fs.writeFileSync('nx.json', JSON.stringify(nx, null, 2));"
-          fi
+          # Remove nxCloudId from nx.json to disable cloud
+          node -e "const fs=require('fs'); const nx=JSON.parse(fs.readFileSync('nx.json')); delete nx.nxCloudId; fs.writeFileSync('nx.json', JSON.stringify(nx, null, 2));"
 
       - name: Generate Prisma Client
         run: npm run prisma:generate
 
       - name: Build backend
-        run: npx nx build mini-chat-server --configuration=production --skip-nx-cache
-
-      - name: Verify build output
-        run: |
-          echo "Checking build output..."
-          ls -la dist/apps/mini-chat-server/ || ls -la apps/mini-chat-server/dist/
-          echo "Build verification complete"
+        run: npx nx build mini-chat-server --configuration=production
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -85,23 +78,17 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "Building Docker image..."
-          
           # Build Docker image
           docker build \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             -f apps/mini-chat-server/Dockerfile .
           
-          echo "Pushing Docker images to ECR..."
-          
           # Push images to ECR
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-          
-          echo "Docker image pushed successfully!"
 
       - name: Download task definition
         run: |
