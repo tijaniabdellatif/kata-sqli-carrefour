@@ -57,8 +57,6 @@ WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
-
-# Copy the consolidated build output
 COPY --from=builder --chown=nodejs:nodejs /app/final-dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/apps/mini-chat-server/prisma ./prisma
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
