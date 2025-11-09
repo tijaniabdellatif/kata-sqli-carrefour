@@ -1,41 +1,21 @@
-# Stage 1: Builder
+
 FROM node:20-alpine AS builder
 
 WORKDIR /app
-
-# Copy root package files
 COPY package*.json ./
 COPY nx.json ./
 COPY tsconfig*.json ./
-
-# Copy workspace configuration
-COPY apps/mini-chat-server/package.json ./apps/mini-chat-server/
-COPY apps/mini-chat-server/tsconfig*.json ./apps/mini-chat-server/
-
-# Copy libs directory if it exists (with proper syntax)
+COPY apps/ ./apps/
 COPY libs/ ./libs/
-
-# Install ALL dependencies (including devDependencies for build)
 RUN npm ci
-
-# Copy application source
-COPY apps/mini-chat-server/src ./apps/mini-chat-server/src
-COPY apps/mini-chat-server/prisma ./apps/mini-chat-server/prisma
-
-# Generate Prisma Client
 WORKDIR /app/apps/mini-chat-server
 RUN npx prisma generate
-
-# Build the application with Nx
 WORKDIR /app
 ENV NX_DAEMON=false
 ENV NX_NO_CLOUD=true
+RUN npx nx sync
 RUN npx nx build mini-chat-server --configuration=production
-
-# Stage 2: Production
 FROM node:20-alpine AS runner
-
-# Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init curl
 
 # Create app user for security
