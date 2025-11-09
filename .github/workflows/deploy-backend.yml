@@ -28,7 +28,6 @@ env:
   CONTAINER_NAME: mini-chat-backend
 
 jobs:
-
   build-and-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
@@ -110,8 +109,8 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "âœ… Backend deployment successful!"
+            echo "✅ Backend deployment successful!"
             echo "Image: ${{ steps.build-image.outputs.image }}"
           else
-            echo "âŒ Backend deployment failed!"
+            echo "❌ Backend deployment failed!"
           fi
