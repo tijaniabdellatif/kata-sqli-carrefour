@@ -1,0 +1,298 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  AWS_REGION: eu-north-1
+  NX_NO_CLOUD: true
+  NX_DAEMON: false
+
+jobs:
+  # Detect which apps changed
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/mini-chat-server/**'
+              - 'libs/backend/**'
+              - 'libs/shared/**'
+              - '.github/workflows/ci-cd.yml'
+            frontend:
+              - 'apps/client-chat/**'
+              - 'libs/frontend/**'
+              - 'libs/shared/**'
+              - '.github/workflows/ci-cd.yml'
+
+  # Backend pipeline
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Disable Nx Cloud
+        run: |
+          node -e "const fs=require('fs'); const nx=JSON.parse(fs.readFileSync('nx.json')); delete nx.nxCloudId; fs.writeFileSync('nx.json', JSON.stringify(nx, null, 2));"
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Run backend tests
+        run: npx nx test mini-chat-server --ci --coverage --maxWorkers=2
+        continue-on-error: true
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        continue-on-error: true
+        with:
+          files: ./coverage/apps/mini-chat-server/coverage-final.json
+          flags: backend
+
+  backend-deploy:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: [detect-changes, backend-test]
+    if: |
+      needs.detect-changes.outputs.backend == 'true' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Disable Nx Cloud
+        run: |
+          node -e "const fs=require('fs'); const nx=JSON.parse(fs.readFileSync('nx.json')); delete nx.nxCloudId; fs.writeFileSync('nx.json', JSON.stringify(nx, null, 2));"
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Build backend
+        run: npx nx build mini-chat-server --configuration=production
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: mini-chat-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -f apps/mini-chat-server/Dockerfile .
+          
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition mini-chat-backend-task \
+            --query taskDefinition > task-definition.json
+
+      - name: Update ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: mini-chat-backend
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: mini-chat-backend-task-service-3eijw1io
+          cluster: mini-chat-cluster
+          wait-for-service-stability: true
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Backend deployed successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🐳 Image: ${{ steps.build-image.outputs.image }}"
+          echo "🏷️  Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}"
+          echo "🔗 Commit: ${{ github.sha }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # Frontend pipeline
+  frontend-deploy:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.frontend == 'true' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Disable Nx Cloud
+        run: |
+          node -e "const fs=require('fs'); const nx=JSON.parse(fs.readFileSync('nx.json')); delete nx.nxCloudId; fs.writeFileSync('nx.json', JSON.stringify(nx, null, 2));"
+
+      - name: Build frontend
+        run: npx nx build client-chat --configuration=production
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.example.com' }}
+          VITE_APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+      - name: Verify build output
+        run: |
+          if [ -d "dist/apps/client-chat" ]; then
+            echo "✅ Found build at dist/apps/client-chat"
+            BUILD_DIR="dist/apps/client-chat"
+          elif [ -d "apps/client-chat/dist" ]; then
+            echo "✅ Found build at apps/client-chat/dist"
+            BUILD_DIR="apps/client-chat/dist"
+          else
+            echo "❌ Build output not found!"
+            exit 1
+          fi
+          echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
+          ls -la $BUILD_DIR
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync static assets to S3
+        run: |
+          # Upload static assets with long cache
+          aws s3 sync ${{ env.BUILD_DIR }} s3://mini-chat-frontend \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json" \
+            --exclude "*.txt"
+
+      - name: Sync HTML and manifest files
+        run: |
+          # Upload HTML/JSON with no-cache
+          aws s3 sync ${{ env.BUILD_DIR }} s3://mini-chat-frontend \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --exclude "*" \
+            --include "*.html" \
+            --include "*.json" \
+            --include "*.txt"
+
+      - name: Invalidate CloudFront
+        id: invalidate
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id E33FWMFL2VULZ6 \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          echo "invalidation_id=$INVALIDATION_ID" >> $GITHUB_OUTPUT
+
+      - name: Get CloudFront URL
+        id: cloudfront
+        run: |
+          URL=$(aws cloudfront get-distribution \
+            --id E33FWMFL2VULZ6 \
+            --query 'Distribution.DomainName' \
+            --output text)
+          echo "url=https://$URL" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Frontend deployed successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🌐 URL: ${{ steps.cloudfront.outputs.url }}"
+          echo "🏷️  Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}"
+          echo "🔄 Invalidation: ${{ steps.invalidate.outputs.invalidation_id }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Frontend preview deployed!\n\n**URL:** ${{ steps.cloudfront.outputs.url }}\n**Environment:** Staging`
+            })

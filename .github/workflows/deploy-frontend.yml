@@ -1,0 +1,158 @@
+name: Deploy Frontend to S3 & CloudFront
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/client-chat/**'
+      - 'libs/frontend/**'
+      - 'libs/shared/**'
+      - '.github/workflows/deploy-frontend.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/client-chat/**'
+      - 'libs/frontend/**'
+      - 'libs/shared/**'
+
+env:
+  AWS_REGION: eu-north-1
+  S3_BUCKET: mini-chat-frontend
+  CLOUDFRONT_DISTRIBUTION_ID: E33FWMFL2VULZ6
+  NX_NO_CLOUD: true
+  NX_DAEMON: false
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Frontend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Disable Nx Cloud
+        run: |
+          # Remove nxCloudId from nx.json to disable cloud
+          node -e "const fs=require('fs'); const nx=JSON.parse(fs.readFileSync('nx.json')); delete nx.nxCloudId; fs.writeFileSync('nx.json', JSON.stringify(nx, null, 2));"
+
+      - name: Build frontend
+        run: npx nx build client-chat --configuration=production
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.example.com' }}
+          VITE_APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+      - name: Verify build output
+        run: |
+          echo "Build output location check:"
+          if [ -d "dist/apps/client-chat" ]; then
+            echo "✅ Found build at dist/apps/client-chat"
+            BUILD_DIR="dist/apps/client-chat"
+          elif [ -d "apps/client-chat/dist" ]; then
+            echo "✅ Found build at apps/client-chat/dist"
+            BUILD_DIR="apps/client-chat/dist"
+          else
+            echo "❌ Build output not found!"
+            echo "Contents of dist/:" && ls -la dist/ || echo "dist/ does not exist"
+            echo "Contents of apps/client-chat/:" && ls -la apps/client-chat/
+            exit 1
+          fi
+          echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
+          echo "Build contents:" && ls -la $BUILD_DIR
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sync static assets to S3 (with long cache)
+        run: |
+          # Upload JS/CSS/images with long cache (1 year)
+          aws s3 sync ${{ env.BUILD_DIR }} s3://${{ env.S3_BUCKET }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "*.html" \
+            --exclude "*.json" \
+            --exclude "*.txt"
+
+      - name: Sync HTML and manifest files to S3 (with no cache)
+        run: |
+          # Upload HTML/JSON/manifest files with no-cache for immediate updates
+          aws s3 sync ${{ env.BUILD_DIR }} s3://${{ env.S3_BUCKET }} \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --exclude "*" \
+            --include "*.html" \
+            --include "*.json" \
+            --include "*.txt"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          echo "CloudFront invalidation created: $INVALIDATION_ID"
+          echo "INVALIDATION_ID=$INVALIDATION_ID" >> $GITHUB_ENV
+
+      - name: Get CloudFront URL
+        id: cloudfront-url
+        run: |
+          DOMAIN=$(aws cloudfront get-distribution \
+            --id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --query 'Distribution.DomainName' \
+            --output text)
+          echo "url=https://$DOMAIN" >> $GITHUB_OUTPUT
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Frontend deployment successful!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🌐 CloudFront URL: ${{ steps.cloudfront-url.outputs.url }}"
+            echo "📦 S3 Bucket: s3://${{ env.S3_BUCKET }}"
+            echo "🔄 CloudFront Invalidation: ${{ env.INVALIDATION_ID }}"
+            echo "🏷️  Environment: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          else
+            echo "❌ Frontend deployment failed!"
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 Frontend preview deployed!
+            
+            **URL:** ${{ steps.cloudfront-url.outputs.url }}
+            **Environment:** ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+            **Build:** ✅ Success
+            
+            _CloudFront cache invalidation in progress..._`
+            })
