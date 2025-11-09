@@ -23,7 +23,7 @@ env:
   AWS_REGION: eu-north-1
   ECR_REPOSITORY: mini-chat-backend
   ECS_CLUSTER: mini-chat-cluster
-  ECS_SERVICE: mini-chat-backend-service
+  ECS_SERVICE: mini-chat-backend-task-service-3eijw1io
   ECS_TASK_DEFINITION: mini-chat-backend-task
   CONTAINER_NAME: mini-chat-backend
   NX_NO_CLOUD: true
