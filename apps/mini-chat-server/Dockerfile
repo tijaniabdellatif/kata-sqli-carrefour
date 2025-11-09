@@ -40,7 +40,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 # Copy built application from builder
-COPY --from=builder /app/dist/apps/mini-chat-server ./dist
+COPY --from=builder /app/dist/apps ./dist
 
 # Copy prisma files and generated client
 COPY --from=builder /app/apps/mini-chat-server/prisma ./prisma
