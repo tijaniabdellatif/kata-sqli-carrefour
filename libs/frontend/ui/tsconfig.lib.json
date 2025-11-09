@@ -35,6 +35,9 @@
   "references": [
     {
       "path": "../../shared/types/tsconfig.lib.json" // Looks for built types
+    },
+    {
+      "path": "../../backend/common-layer/tsconfig.lib.json"
     }
   ]
 }
