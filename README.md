@@ -24,7 +24,7 @@
     <a href="https://gitlab.com/fr_kata_sf/c4-sf-2025-10-24-mini-chat-tija/-/issues">Request Feature</a>
   </p>
 </div>
-
+ 
 <!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
