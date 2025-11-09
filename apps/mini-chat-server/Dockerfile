@@ -45,7 +45,7 @@ RUN mkdir -p /app/final-dist && \
     echo "Build output consolidated to /app/final-dist" && \
     ls -la /app/final-dist
 
-# Stage 2: Production
+
 FROM node:20-alpine AS runner
 
 RUN apk add --no-cache dumb-init curl
