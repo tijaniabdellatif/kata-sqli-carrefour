@@ -24,6 +24,9 @@ RUN cd apps/mini-chat-server && npx prisma generate
 COPY apps ./apps
 COPY libs ./libs
 
+# Sync Nx workspace
+RUN npx nx sync
+
 # Build the application
 RUN npx nx build mini-chat-server --configuration=production
 
