@@ -26,7 +26,12 @@ COPY libs ./libs
 
 # Sync Nx workspace and build the application
 RUN NX_DAEMON=false NX_NO_CLOUD=true npx nx sync && \
-    NX_DAEMON=false NX_NO_CLOUD=true npx nx build mini-chat-server --configuration=production
+    NX_DAEMON=false NX_NO_CLOUD=true npx nx build mini-chat-server --configuration=production && \
+    echo "===== Build output structure =====" && \
+    find /app/dist -type f 2>/dev/null || echo "dist folder not found" && \
+    echo "===== Checking alternative locations =====" && \
+    ls -la /app/ && \
+    echo "====================================="
 
 # Stage 2: Production
 FROM node:20-alpine AS runner
