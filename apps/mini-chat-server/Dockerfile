@@ -13,7 +13,6 @@ COPY tsconfig*.json ./
 # Copy workspace configuration
 COPY apps/mini-chat-server/package.json ./apps/mini-chat-server/
 COPY apps/mini-chat-server/tsconfig*.json ./apps/mini-chat-server/
-COPY apps/mini-chat-server/project.json ./apps/mini-chat-server/
 
 # Copy shared libraries
 COPY libs ./libs
