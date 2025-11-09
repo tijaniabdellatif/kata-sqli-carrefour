@@ -1,5 +1,3 @@
-# Multi-stage Dockerfile for mini-chat-server in Nx monorepo
-
 # Stage 1: Build
 FROM node:20-alpine AS builder
 
@@ -11,59 +9,49 @@ COPY nx.json ./
 COPY tsconfig*.json ./
 
 # Copy workspace configuration
-COPY apps/mini-chat-server/package.json ./apps/mini-chat-server/
-COPY apps/mini-chat-server/tsconfig*.json ./apps/mini-chat-server/
+COPY .npmrc* ./
 
-# Copy shared libraries
-COPY libs ./libs
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --only=production && \
-    npm cache clean --force
-
-# Copy application source
-COPY apps/mini-chat-server ./apps/mini-chat-server
+# Copy prisma schema
+COPY apps/mini-chat-server/prisma ./apps/mini-chat-server/prisma
 
 # Generate Prisma Client
-WORKDIR /app/apps/mini-chat-server
-RUN npx prisma generate
+RUN cd apps/mini-chat-server && npx prisma generate
+
+# Copy source code
+COPY apps ./apps
+COPY libs ./libs
 
 # Build the application
-WORKDIR /app
 RUN npx nx build mini-chat-server --configuration=production
 
 # Stage 2: Production
-FROM node:20-alpine AS production
-
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create app user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder --chown=nodejs:nodejs /app/dist/apps/mini-chat-server ./
-COPY --from=builder --chown=nodejs:nodejs /app/apps/mini-chat-server/prisma ./prisma
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/apps/mini-chat-server/package.json ./
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# Copy built application from builder
+COPY --from=builder /app/dist/apps/mini-chat-server ./dist
+
+# Copy prisma files and generated client
+COPY --from=builder /app/apps/mini-chat-server/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Switch to non-root user
-USER nodejs
-
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Start application with dumb-init
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "main.js"]
+# Start the application
+CMD ["node", "dist/main.js"]
