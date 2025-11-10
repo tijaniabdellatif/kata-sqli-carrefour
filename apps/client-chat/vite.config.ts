@@ -24,6 +24,8 @@ export default defineConfig(({ mode }) => ({
     alias: {
       '@mini-chat/shared-types': path.resolve(__dirname, '../../libs/shared/types/src'),
       '@mini-chat/frontend-ui': path.resolve(__dirname, '../../libs/frontend/ui/src'),
+      // Add specific alias for styles to handle CSS imports
+      '@mini-chat/frontend-ui/styles': path.resolve(__dirname, '../../libs/frontend/ui/src/styles'),
     },
   },
   

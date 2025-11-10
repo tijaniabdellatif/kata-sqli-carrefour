@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import '@mini-chat/frontend-ui/styles';
+import '@mini-chat/frontend-ui/styles/globals.css';
 import { ChatWindow, ConversationList } from '@mini-chat/frontend-ui';
 import { useConversations } from '../hooks/use-conversation';
 import { useChat } from '../hooks/use-chat';
