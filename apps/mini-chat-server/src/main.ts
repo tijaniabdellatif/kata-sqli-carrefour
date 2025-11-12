@@ -13,16 +13,23 @@ const app: Express = express();
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
-app.use(cors({
+// CORS configuration
+const corsOptions = {
   origin: [
-    'https://dy0bdbw1dtmnp.cloudfront.net',  // Your frontend
-    'http://localhost:4200',  // For local development
-    'http://localhost:3000',  // Alternative local port
+    'https://dy0bdbw1dtmnp.cloudfront.net',
+    'http://localhost:4200',
+    'http://localhost:3000',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+app.use(cors(corsOptions));
+
+// IMPORTANT: Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -77,7 +84,7 @@ const initApp = async () => {
     const gracefulShutdown = async (signal: string) => {
       console.log(`\n📡 ${signal} received. Starting graceful shutdown...`);
       server.close(async () => {
-        console.log('📌 HTTP server closed');
+        console.log('🔌 HTTP server closed');
         process.exit(0);
       });
       setTimeout(() => {

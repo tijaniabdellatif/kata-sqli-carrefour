@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Architecture - Mini Chat Application</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .architecture {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .layer {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid #e9ecef;
+        }
+
+        .layer-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .layer-title::before {
+            content: '';
+            width: 6px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px;
+        }
+
+        .components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .component {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .component-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .component-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .component-details {
+            font-size: 0.9em;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .component-id {
+            font-family: 'Courier New', monospace;
+            background: #f1f3f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            display: inline-block;
+            margin-top: 8px;
+            color: #495057;
+        }
+
+        .flow-diagram {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            margin-top: 40px;
+            border: 2px solid #e9ecef;
+        }
+
+        .flow-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .flow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .step-description {
+            color: #6c757d;
+            font-size: 0.95em;
+        }
+
+        .arrow {
+            text-align: center;
+            font-size: 2em;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .info-title {
+            font-weight: bold;
+            color: #1976D2;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .info-content {
+            color: #424242;
+            line-height: 1.6;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-top: 8px;
+            margin-right: 5px;
+        }
+
+        .tag.https {
+            background: #10b981;
+        }
+
+        .tag.http {
+            background: #f59e0b;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ AWS Infrastructure Architecture</h1>
+        <p class="subtitle">Mini Chat Application - Full Stack Deployment</p>
+
+        <div class="architecture">
+            <!-- User Layer -->
+            <div class="layer">
+                <div class="layer-title">👤 User Layer</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">🌐</div>
+                        <div class="component-title">End User Browser</div>
+                        <div class="component-details">
+                            Accesses the application via HTTPS
+                            <span class="tag https">HTTPS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CDN Layer -->
+            <div class="layer">
+                <div class="layer-title">🚀 CDN Layer (CloudFront)</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">☁️</div>
+                        <div class="component-title">Frontend CloudFront</div>
+                        <div class="component-details">
+                            Serves React application from S3
+                            <div class="component-id">dy0bdbw1dtmnp.cloudfront.net</div>
+                            <span class="tag https">HTTPS</span>
+                            <div style="margin-top: 10px; color: #10b981; font-weight: bold;">✓ Active</div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">🔧</div>
+                        <div class="component-title">Backend CloudFront</div>
+                        <div class="component-details">
+                            API Gateway - Adds HTTPS to backend
+                            <div class="component-id">dt2z7tyoy6hd3.cloudfront.net</div>
+                            <span class="tag https">HTTPS</span>
+                            <div style="margin-top: 10px; color: #10b981; font-weight: bold;">✓ Active</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storage Layer -->
+            <div class="layer">
+                <div class="layer-title">💾 Storage Layer</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">📦</div>
+                        <div class="component-title">S3 Bucket</div>
+                        <div class="component-details">
+                            Static assets hosting for frontend
+                            <div class="component-id">mini-chat-frontend</div>
+                            <span class="tag">Static Files</span>
+                            <div style="margin-top: 10px;">HTML, CSS, JS bundles</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Load Balancing Layer -->
+            <div class="layer">
+                <div class="layer-title">⚖️ Load Balancing Layer</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">🔀</div>
+                        <div class="component-title">Application Load Balancer</div>
+                        <div class="component-details">
+                            Distributes traffic to ECS tasks
+                            <div class="component-id">mini-chat-backend-alb</div>
+                            <span class="tag http">HTTP:80</span>
+                            <div style="margin-top: 10px;">
+                                <strong>Listener:</strong> HTTP:80<br>
+                                <strong>Type:</strong> Internet-facing
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">🎯</div>
+                        <div class="component-title">Target Group</div>
+                        <div class="component-details">
+                            Routes requests to backend containers
+                            <div class="component-id">mini-chat-backend-tg</div>
+                            <span class="tag">Port 3000</span>
+                            <div style="margin-top: 10px;">
+                                <strong>Type:</strong> IP addresses<br>
+                                <strong>Health Check:</strong> /health
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Container Layer -->
+            <div class="layer">
+                <div class="layer-title">🐳 Container Orchestration Layer (ECS)</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">📊</div>
+                        <div class="component-title">ECS Cluster</div>
+                        <div class="component-details">
+                            Container orchestration cluster
+                            <div class="component-id">mini-chat-cluster</div>
+                            <span class="tag">Fargate</span>
+                            <div style="margin-top: 10px;">
+                                <strong>Launch Type:</strong> Fargate<br>
+                                <strong>Region:</strong> eu-north-1
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">⚙️</div>
+                        <div class="component-title">ECS Service</div>
+                        <div class="component-details">
+                            Manages task lifecycle and scaling
+                            <div class="component-id">mini-chat-backend-task-service-3eijw1io</div>
+                            <span class="tag">1 Task</span>
+                            <div style="margin-top: 10px;">
+                                <strong>Strategy:</strong> REPLICA<br>
+                                <strong>Desired Count:</strong> 1
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">📦</div>
+                        <div class="component-title">ECS Task</div>
+                        <div class="component-details">
+                            Running container instance
+                            <div class="component-id">mini-chat-backend-task:7</div>
+                            <span class="tag">Port 3000</span>
+                            <div style="margin-top: 10px;">
+                                <strong>CPU:</strong> 256<br>
+                                <strong>Memory:</strong> 512 MB<br>
+                                <strong>IP:</strong> 172.31.36.95
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Container Registry -->
+            <div class="layer">
+                <div class="layer-title">🗄️ Container Registry Layer</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">🐋</div>
+                        <div class="component-title">Amazon ECR</div>
+                        <div class="component-details">
+                            Docker image repository
+                            <div class="component-id">mini-chat-backend</div>
+                            <span class="tag">Latest Image</span>
+                            <div style="margin-top: 10px;">
+                                <strong>URI:</strong> 561410231785.dkr.ecr.eu-north-1.amazonaws.com<br>
+                                <strong>Encryption:</strong> AES-256
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Layer -->
+            <div class="layer">
+                <div class="layer-title">🌐 Network Layer</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">🔒</div>
+                        <div class="component-title">VPC</div>
+                        <div class="component-details">
+                            Virtual Private Cloud
+                            <div class="component-id">vpc-01170bc1017122675</div>
+                            <span class="tag">CIDR: 172.31.0.0/16</span>
+                            <div style="margin-top: 10px;">
+                                <strong>Region:</strong> eu-north-1<br>
+                                <strong>DNS Support:</strong> Enabled
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">🔗</div>
+                        <div class="component-title">Subnets (2)</div>
+                        <div class="component-details">
+                            Multi-AZ deployment for high availability
+                            <div style="margin-top: 10px;">
+                                <div class="component-id">subnet-08cdd754365d569bd</div>
+                                <strong>AZ:</strong> eu-north-1a<br><br>
+                                <div class="component-id">subnet-085a37d328b1bfa15</div>
+                                <strong>AZ:</strong> eu-north-1b
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">🛡️</div>
+                        <div class="component-title">Security Group</div>
+                        <div class="component-details">
+                            Firewall rules for ECS tasks
+                            <div class="component-id">mini-chat-ecs-sg</div>
+                            <div style="margin-top: 10px;">
+                                <strong>Inbound:</strong> Port 3000 (Custom TCP)<br>
+                                <strong>Outbound:</strong> All traffic
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">🔀</div>
+                        <div class="component-title">Route Table</div>
+                        <div class="component-details">
+                            Network routing configuration
+                            <div class="component-id">rtb-06ad90e460e99875d</div>
+                            <span class="tag">Main</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CI/CD Layer -->
+            <div class="layer">
+                <div class="layer-title">🔄 CI/CD Layer</div>
+                <div class="components">
+                    <div class="component">
+                        <div class="component-icon">⚡</div>
+                        <div class="component-title">GitHub Actions</div>
+                        <div class="component-details">
+                            Automated deployment pipeline
+                            <span class="tag">ci-cd.yml</span>
+                            <div style="margin-top: 10px;">
+                                <strong>Triggers:</strong> Push to main/develop<br>
+                                <strong>Jobs:</strong> Build, Test, Deploy
+                            </div>
+                        </div>
+                    </div>
+                    <div class="component">
+                        <div class="component-icon">🏗️</div>
+                        <div class="component-title">Build Process</div>
+                        <div class="component-details">
+                            Docker image creation and push
+                            <div style="margin-top: 10px;">
+                                <strong>Frontend:</strong> Nx build → S3<br>
+                                <strong>Backend:</strong> Docker → ECR → ECS
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Request Flow Diagram -->
+        <div class="flow-diagram">
+            <div class="flow-title">📊 Request Flow: User → Backend</div>
+            <div class="flow-steps">
+                <div class="flow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">User Opens Browser</div>
+                        <div class="step-description">User navigates to https://dy0bdbw1dtmnp.cloudfront.net/</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Frontend CloudFront</div>
+                        <div class="step-description">CloudFront serves cached React app from edge location (HTTPS)</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">S3 Bucket (if cache miss)</div>
+                        <div class="step-description">CloudFront fetches static files from S3 bucket: mini-chat-frontend</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">Frontend Makes API Call</div>
+                        <div class="step-description">React app sends API request to https://dt2z7tyoy6hd3.cloudfront.net/api/chat/message (HTTPS)</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <div class="step-title">Backend CloudFront</div>
+                        <div class="step-description">CloudFront terminates HTTPS, forwards to ALB via HTTP (internal AWS network)</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <div class="step-title">Application Load Balancer</div>
+                        <div class="step-description">ALB receives request on HTTP:80, checks target group health</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">7</div>
+                    <div class="step-content">
+                        <div class="step-title">Target Group Routes Request</div>
+                        <div class="step-description">Routes to healthy ECS task IP (172.31.36.95:3000) in VPC</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">8</div>
+                    <div class="step-content">
+                        <div class="step-title">ECS Task (Docker Container)</div>
+                        <div class="step-description">Backend application processes request, queries database if needed</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">9</div>
+                    <div class="step-content">
+                        <div class="step-title">Response Returns Through Stack</div>
+                        <div class="step-description">ECS → ALB → CloudFront → User Browser (with CORS headers)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Flow -->
+        <div class="flow-diagram">
+            <div class="flow-title">🚀 Deployment Flow: Git Push → Production</div>
+            <div class="flow-steps">
+                <div class="flow-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Developer Pushes Code</div>
+                        <div class="step-description">Git push to main/develop branch triggers GitHub Actions workflow</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Detect Changes</div>
+                        <div class="step-description">GitHub Actions detects which apps changed (frontend/backend) using path filters</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Backend: Build Docker Image</div>
+                        <div class="step-description">
+                            • Install dependencies (npm ci)<br>
+                            • Generate Prisma Client<br>
+                            • Build with Nx (production config)<br>
+                            • Create Docker image with multi-stage build
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">Push to ECR</div>
+                        <div class="step-description">Docker image pushed to Amazon ECR with tags: latest and commit SHA</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <div class="step-title">Update ECS Task Definition</div>
+                        <div class="step-description">GitHub Actions updates task definition with new image URI</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <div class="step-title">ECS Deploys New Task</div>
+                        <div class="step-description">
+                            • ECS pulls new image from ECR<br>
+                            • Starts new task<br>
+                            • Waits for health checks to pass<br>
+                            • Terminates old task (rolling update)
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">7</div>
+                    <div class="step-content">
+                        <div class="step-title">Frontend: Build Static Assets</div>
+                        <div class="step-description">
+                            • Nx builds React app with production config<br>
+                            • Environment variables injected (VITE_API_URL)<br>
+                            • Assets optimized and bundled
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">8</div>
+                    <div class="step-content">
+                        <div class="step-title">Sync to S3</div>
+                        <div class="step-description">
+                            • Static assets synced to S3 bucket with long cache<br>
+                            • HTML files synced with no-cache headers
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">9</div>
+                    <div class="step-content">
+                        <div class="step-title">Invalidate CloudFront Cache</div>
+                        <div class="step-description">CloudFront cache invalidated (/*) to serve new content immediately</div>
+                    </div>
+                </div>
+                
+                <div class="arrow">↓</div>
+                
+                <div class="flow-step">
+                    <div class="step-number">10</div>
+                    <div class="step-content">
+                        <div class="step-title">✅ Deployment Complete</div>
+                        <div class="step-description">New version live in production! Users receive updated application on next page load.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Information -->
+        <div class="info-box">
+            <div class="info-title">🔑 Key Configuration Details</div>
+            <div class="info-content">
+                <strong>Region:</strong> eu-north-1 (Stockholm)<br>
+                <strong>Frontend URL:</strong> https://dy0bdbw1dtmnp.cloudfront.net/<br>
+                <strong>Backend API URL:</strong> https://dt2z7tyoy6hd3.cloudfront.net/<br>
+                <strong>Container Platform:</strong> AWS Fargate (Serverless)<br>
+                <strong>Load Balancer Type:</strong> Application Load Balancer<br>
+                <strong>SSL/TLS:</strong> Managed by CloudFront (free AWS certificate)<br>
+                <strong>Health Check Endpoint:</strong> /health<br>
+                <strong>Deployment Strategy:</strong> Rolling update with zero downtime<br>
+                <strong>Auto Scaling:</strong> Configured but currently 1 task
+            </div>
+        </div>
+
+       
+
+        <div class="info-box" style="background: #d1ecf1; border-left-color: #17a2b8; margin-top: 20px;">
+            <div class="info-title" style="color: #0c5460;">💡 Architecture Benefits</div>
+            <div class="info-content" style="color: #0c5460;">
+                ✅ <strong>High Availability:</strong> Multi-AZ deployment with ALB<br>
+                ✅ <strong>Scalability:</strong> ECS Fargate auto-scales based on load<br>
+                ✅ <strong>Security:</strong> HTTPS everywhere, private VPC networking<br>
+                ✅ <strong>Performance:</strong> CloudFront CDN for global low latency<br>
+                ✅ <strong>CI/CD:</strong> Automated deployments on git push<br>
+              
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add animation on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        });
+
+        document.querySelectorAll('.component, .flow-step, .layer').forEach((el) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'all 0.6s ease';
+            observer.observe(el);
+        });
+
+        // Print functionality
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                window.print();
+            }
+        });
+    </script>
+</body>
+</html>
