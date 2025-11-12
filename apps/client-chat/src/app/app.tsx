@@ -5,7 +5,7 @@ import { useConversations } from '../hooks/use-conversation';
 import { useChat } from '../hooks/use-chat';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
+ 
 export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const {
