@@ -13,12 +13,16 @@ const app: Express = express();
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:4200',
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: [
+    'https://dy0bdbw1dtmnp.cloudfront.net',  // Your frontend
+    'http://localhost:4200',  // For local development
+    'http://localhost:3000',  // Alternative local port
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
