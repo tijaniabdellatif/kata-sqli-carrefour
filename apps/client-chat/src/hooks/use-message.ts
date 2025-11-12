@@ -34,7 +34,7 @@ export function useMessages(
 
   const removeMessage = useCallback((id: string) => {
     setMessages((prev) => prev.filter((msg) => msg.id !== id));
-  }, []);
+  }, []); 
 
   return {
     messages,
